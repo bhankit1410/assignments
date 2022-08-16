@@ -1,0 +1,6 @@
+pandas
+requests
+mysql-connector-python
+sqlalchemy
+pyspark
+seaborn
