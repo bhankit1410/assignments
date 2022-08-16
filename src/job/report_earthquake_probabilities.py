@@ -1,9 +1,7 @@
 # python3
 
-
 import requests
 import pandas as pd
-import time
 import seaborn as sns
 
 from util.mysql import setup_mysql
@@ -11,6 +9,12 @@ from common.constants import DATABASE, TABLE
 
 _CM = sns.light_palette("lightgreen", as_cmap=True)
 _COLUMNS = "(event_id, place, mag, time, longitude, latitude, depth)"
+
+
+def _convert_epoch_millis(millis):
+    hours=(millis/(1000*60*60))%24
+    return int(hours)
+
 
 def _prepare_urls():
     urls = {}
@@ -51,8 +55,8 @@ def _extract_load(urls, db_conn):
 
 
 def _build_report(df):
-    df.sort_values(by=['rounded_magnitude', 'hour']) \
-        .style.background_gradient(cmap=_CM, subset=pd.IndexSlice[:, ['rank']])
+    for mag_range in df['rounded_magnitude'].unique():
+        df[df['rounded_magnitude'] == mag_range].plot(x='hour', y='count')
 
 
 if __name__ == '__main__':
@@ -77,7 +81,7 @@ if __name__ == '__main__':
     # 2. extract the needed information.
 
     filtered_df = df[df.mag.notnull()][df['mag'] >= 0]
-    filtered_df["hour"] = [time.gmtime(datetime).tm_hour for datetime in filtered_df["time"]]
+    filtered_df["hour"] = [_convert_epoch_millis(datetime) for datetime in (filtered_df["time"]/1000)]
     filtered_df["rounded_magnitude"] = [f'{int(mag)} - {int(mag) + 1}' if mag < 6 else ">6" for mag in filtered_df["mag"]]
 
     # query 5:
@@ -93,6 +97,6 @@ if __name__ == '__main__':
     print(hour_for_earthquakes.head(10))
 
     # plot a graph.
-    _build_report(hour_for_earthquakes)
+    _build_report(agg)
 
     db_connection.close()
